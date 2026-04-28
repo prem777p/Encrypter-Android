@@ -29,6 +29,7 @@ import com.pm.encrypter.utils.getFileName
 import com.pm.encrypter.utils.shareFile
 import com.pm.encrypter.utils.splitFileName
 import com.pm.encrypter.utils.ProgressInputStream
+import com.pm.encrypter.utils.openFolderModern
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -92,7 +93,7 @@ class Progress : AppCompatActivity() {
             }
         }
         btnView.setOnClickListener {
-            openFolderModern()
+            openFolderModern(this,folderType)
         }
 
         if (task.equals("ENCRYPT")) {
@@ -304,36 +305,7 @@ class Progress : AppCompatActivity() {
         }
     }
 
-    fun openFolderModern() {
 
-        val (uri, type) = pathAndType()
-
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, type)
-            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-
-        try {
-            startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(this, "No app found to open folder", Toast.LENGTH_SHORT).show()
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            startActivity(intent)
-        }
-    }
-
-    fun pathAndType(): Pair<Uri, String> {
-        val path = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "Encrypter/$folderType"
-        )
-
-        return if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) Pair(Uri.fromFile(path), "*/*")
-        else Pair(
-            "content://com.android.externalstorage.documents/document/primary:Download/Encrypter/$folderType".toUri(),
-            DocumentsContract.Document.MIME_TYPE_DIR
-        )
-    }
 
     fun showDeleteFileDialog(onResult: (Boolean) -> Unit) {
 
