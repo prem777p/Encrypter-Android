@@ -1,0 +1,17 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.Encrypter" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <item name="colorPrimary">@color/primaryColor</item>
+        <item name="colorSecondary">@color/I</item>
+        <item name="colorPrimaryContainer">@color/II</item>
+        <item name="colorOnPrimaryContainer">@color/white</item>
+        <item name="colorSecondaryContainer">@color/colorSecondaryContainer</item>
+
+    </style>
+
+    <style name="Theme.Encrypter" parent="Base.Theme.Encrypter" >
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@color/black</item>
+    </style>
+</resources>

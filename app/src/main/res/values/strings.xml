@@ -1,0 +1,38 @@
+<resources>
+    <string name="app_name">Encrypter</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <!-- Strings used for fragments for navigation -->
+    <string name="first_fragment_label">First Fragment</string>
+    <string name="second_fragment_label">Second Fragment</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+
+    <string name="invalid_password">Enter correct password (e.g. Pass@987)</string>
+    <string name="empty_password">Please enter your password</string>
+    <string name="invalid_password_length">Password must be 8 characters</string>
+    <string name="invalid_password_lower">Include at least an lowercase letter</string>
+    <string name="invalid_password_upper">Include at least an uppercase letter</string>
+    <string name="invalid_password_digit">Include at least a number</string>
+    <string name="invalid_password_special_char">Include at least a special character</string>
+    <string name="invalid_password_no_space">Don’t include spaces</string>
+
+
+    <string name="menu_home">Home</string>
+    <string name="menu_files">Files</string>
+    <string name="file_icon">file icon</string>
+    <string name="file_name">file name</string>
+    <string name="file_metadata">file metadata</string>
+    <string name="menu_icon">menu icon</string>
+    <string name="search_files">Search files</string>
+    <string name="encrypted">Encrypted</string>
+    <string name="decrypted">Decrypted</string>
+    <string name="private_file">Private File</string>
+    <string name="all">All</string>
+    <string name="_00">00</string>
+    <string name="encrypt_file">Encrypt File</string>
+    <string name="decrypt_file">Decrypt File</string>
+    <string name="protect_video_image_docs_and_private_files">Protect Video, Image,Docs and Private files</string>
+    <string name="file_saved_in_download_folder">File saved in download folder</string>
+</resources>
