@@ -17,6 +17,10 @@ import com.pm.encrypter.R
 import com.pm.encrypter.utils.formatDate
 import com.pm.encrypter.utils.formatSize
 import com.pm.encrypter.model.FileItem
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class SearchAdapter(
@@ -38,39 +42,54 @@ class SearchAdapter(
             val name = file.name.lowercase()
 
             when {
-                name.endsWith(".jpg") || file.name.endsWith(".png") -> {
+                name.endsWith(".jpg") || name.endsWith(".png") -> {
                     Glide.with(itemView.context)
                         .load(file.uri)
+                        .centerCrop()
+                        .placeholder(R.drawable.ic_docs_24px)
                         .into(icon)
                 }
 
                 name.endsWith(".mp4") -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        val bitmap = ThumbnailUtils.createVideoThumbnail(
-                            File(file.uri.path.toString()),
-                            Size(200, 200),
-                            null
-                        )
-                        icon.setImageBitmap(bitmap)
-                    }else{
-                        icon.setImageResource(android.R.drawable.btn_minus)
-                    }
+                    Glide.with(itemView.context)
+                        .asBitmap()
+                        .load(file.uri)
+                        .centerCrop()
+                        .placeholder(R.drawable.ic_docs_24px)
+                        .into(icon)
                 }
 
                 name.endsWith(".pdf") -> {
-                    val fileDescriptor = context.contentResolver.openFileDescriptor(file.uri, "r")
-                    val renderer = PdfRenderer(fileDescriptor!!)
-                    val page = renderer.openPage(0)
+                    icon.setImageResource(R.drawable.ic_docs_24px)
 
-                    val bitmap = createBitmap(page.width, page.height)
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    icon.setImageBitmap(bitmap)
+                    // load thumbnail in background
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val fileDescriptor = itemView.context.contentResolver
+                                .openFileDescriptor(file.uri, "r")
 
-                    page.close()
-                    renderer.close()
+                            val renderer = PdfRenderer(fileDescriptor!!)
+                            val page = renderer.openPage(0)
+
+                            val bitmap = createBitmap(page.width, page.height)
+
+                            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                            page.close()
+                            renderer.close()
+
+                            withContext(Dispatchers.Main) {
+                                icon.setImageBitmap(bitmap)
+                            }
+
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                 }
+
                 name.endsWith(".enc") -> {
-                    icon.setImageResource(R.drawable.ic_visibility_lock_24px)
+                    icon.setImageResource(R.drawable.enc)
                 }
 
                 else -> {
