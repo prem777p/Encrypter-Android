@@ -1,6 +1,7 @@
 package com.pm.encrypter.adapter
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.media.ThumbnailUtils
 import android.os.Build
@@ -19,11 +20,16 @@ import com.pm.encrypter.model.FileItem
 import java.io.File
 import androidx.core.graphics.createBitmap
 import com.bumptech.glide.Glide
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class EncryptFileAdapter(
     private var files: List<FileItem>,
     private val context: Context,
-    private val onChipClick: (String) -> Unit
+    private val onChipClick: (String) -> Unit,
+    private val onFileClick: (FileItem) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -41,49 +47,73 @@ class EncryptFileAdapter(
 
 
         fun bind(file: FileItem) {
+
             fileName.text = file.name
             val meta = "${formatSize(file.size)} • ${formatDate(file.date)}"
             metaText.text = meta
 
             val name = file.name.lowercase()
 
+            // reset image first (important for recycling)
+            icon.setImageDrawable(null)
+
+            itemView.setOnClickListener {
+                onFileClick(file)
+            }
+
+
             when {
-                name.endsWith(".jpg") || file.name.endsWith(".png") -> {
+                name.endsWith(".jpg") || name.endsWith(".png") -> {
                     Glide.with(itemView.context)
                         .load(file.uri)
+                        .centerCrop()
+                        .placeholder(R.drawable.ic_docs_24px)
                         .into(icon)
                 }
 
                 name.endsWith(".mp4") -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        val bitmap = ThumbnailUtils.createVideoThumbnail(
-                            File(file.uri.path.toString()),
-                            Size(200, 200),
-                            null
-                        )
-                        icon.setImageBitmap(bitmap)
-                    }else{
-                        icon.setImageResource(android.R.drawable.btn_minus)
-                    }
+                    Glide.with(itemView.context)
+                        .asBitmap()
+                        .load(file.uri)
+                        .centerCrop()
+                        .placeholder(R.drawable.ic_docs_24px)
+                        .into(icon)
                 }
 
                 name.endsWith(".pdf") -> {
-                    val fileDescriptor = context.contentResolver.openFileDescriptor(file.uri, "r")
-                    val renderer = PdfRenderer(fileDescriptor!!)
-                    val page = renderer.openPage(0)
+                    icon.setImageResource(R.drawable.ic_docs_24px)
 
-                    val bitmap = createBitmap(page.width, page.height)
-                    page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    icon.setImageBitmap(bitmap)
+                    // load thumbnail in background
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val fileDescriptor = itemView.context.contentResolver
+                                .openFileDescriptor(file.uri, "r")
 
-                    page.close()
-                    renderer.close()
+                            val renderer = PdfRenderer(fileDescriptor!!)
+                            val page = renderer.openPage(0)
+
+                            val bitmap = createBitmap(page.width, page.height)
+
+                            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+                            page.close()
+                            renderer.close()
+
+                            withContext(Dispatchers.Main) {
+                                icon.setImageBitmap(bitmap)
+                            }
+
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                 }
+
                 name.endsWith(".enc") -> {
-                        icon.setImageResource(R.drawable.enc)
+                    icon.setImageResource(R.drawable.enc)
                 }
 
-                    else -> {
+                else -> {
                     icon.setImageResource(R.drawable.ic_docs_24px)
                 }
             }

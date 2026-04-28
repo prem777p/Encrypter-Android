@@ -1,6 +1,9 @@
 package com.pm.encrypter.ui
 
+import android.content.ContentValues
+import android.content.Intent
 import android.database.ContentObserver
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -8,19 +11,30 @@ import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
+import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.search.SearchBar
 import com.google.android.material.search.SearchView
+import com.google.android.material.textfield.TextInputLayout
 import com.pm.encrypter.R
 import com.pm.encrypter.adapter.EncryptFileAdapter
 import com.pm.encrypter.adapter.LastFileBottomPaddingDecoration
 import com.pm.encrypter.adapter.SearchAdapter
 import com.pm.encrypter.model.FileItem
+import com.pm.encrypter.utils.Validate
+import com.pm.encrypter.utils.afterTextChanged
+import com.pm.encrypter.utils.deleteFile
 import com.pm.encrypter.utils.getFilesFromFolder
+import com.pm.encrypter.utils.openFolderModern
+import com.pm.encrypter.utils.shareFile
 
 
 class EncryptFile : Fragment() {
@@ -33,13 +47,15 @@ class EncryptFile : Fragment() {
     lateinit var adapter: EncryptFileAdapter
 
     private var currentType = "All"
+    private lateinit var view: View
     private lateinit var observer: ContentObserver
+    private lateinit var intent: Intent
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_encrypt_file, container, false)
+        view = inflater.inflate(R.layout.fragment_encrypt_file, container, false)
 
         val recyclerView = view.findViewById<RecyclerView>(R.id.recyclerView)
         searchBar = view.findViewById(R.id.search_bar)
@@ -66,11 +82,18 @@ class EncryptFile : Fragment() {
         files = loadFiles("all")
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
-        adapter = EncryptFileAdapter(files, view.context) { type ->
-            files = loadFiles(type)
-            adapter.updateList(files)
-            currentType = type
-        }
+        adapter = EncryptFileAdapter(
+            files,
+            view.context,
+            onChipClick = { type ->
+                files = loadFiles(type)
+                adapter.updateList(files)
+                currentType = type
+            },
+            onFileClick = { file ->
+                showFileOptionsDialog(file)
+            }
+        )
 
         recyclerView.addItemDecoration(
             LastFileBottomPaddingDecoration(
@@ -85,12 +108,11 @@ class EncryptFile : Fragment() {
 
         searchRecycler = view.findViewById(R.id.searchRecycler)
         searchRecycler.layoutManager = LinearLayoutManager(requireContext())
-        searchAdapter = SearchAdapter(view.context,files) { uri ->
+        searchAdapter = SearchAdapter(view.context, files) { fileItem ->
             // when user clicks suggestion
             searchView.hide()
 
-            // update main list
-            // TODO handel logic
+            showFileOptionsDialog(fileItem)
         }
         searchRecycler.adapter = searchAdapter
 
@@ -136,6 +158,8 @@ class EncryptFile : Fragment() {
             true, // 🔥 IMPORTANT (listen to subfolders)
             observer
         )
+        intent = Intent(requireContext(), Progress::class.java)
+
         return view
     }
 
@@ -201,4 +225,177 @@ class EncryptFile : Fragment() {
         requireContext().contentResolver.unregisterContentObserver(observer)
     }
 
+
+    private fun showFileOptionsDialog(file: FileItem) {
+
+        val isEncrypted = file.name.lowercase().endsWith(".enc")
+
+        val folderType = if (isEncrypted) {
+            "Encrypted File"
+        } else {
+            "Decrypted File"
+        }
+
+        val options = if (isEncrypted) {
+            arrayOf("Open", "Decrypt", "Share", "Rename", "Delete")
+        } else {
+            arrayOf("Open", "Encrypt", "Share", "Rename", "Delete")
+        }
+
+        val context = requireContext()
+
+        MaterialAlertDialogBuilder(context)
+            .setTitle(file.name)
+            .setItems(options) { _, which ->
+
+                when (options[which]) {
+                    "Open" -> openFolderModern(context, folderType)
+                    "Encrypt" -> encryption(file.uri)
+                    "Decrypt" -> decryption(file.uri)
+                    "Share" -> shareFile(file.uri, context)
+                    "Rename" -> renameFile(file)
+                    "Delete" -> deleteFile(file.uri, context)
+                }
+            }
+            .show()
+    }
+    fun encryption(uri: Uri) {
+
+        showPasswordDialog("Encrypt File") { password ->
+            if (password.isNotEmpty()) {
+                intent.putExtra("PASSWORD", password)
+                intent.putExtra("URI", uri)
+                intent.putExtra("TASK", "ENCRYPT")
+                startActivity(intent)
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    "Please enter password!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@showPasswordDialog
+            }
+        }
+    }
+
+    fun decryption(uri: Uri) {
+        showPasswordDialog("Decrypt File") { password ->
+            if (password.isNotEmpty()) {
+                intent.putExtra("PASSWORD", password)
+                intent.putExtra("URI", uri)
+                intent.putExtra("TASK", "DECRYPT")
+                startActivity(intent)
+            } else {
+                Toast.makeText(requireContext(), "Please enter password!", Toast.LENGTH_SHORT)
+                    .show()
+            }
+        }
+    }
+
+    fun showPasswordDialog(
+        task: String,
+        onResult: (String) -> Unit
+    ) {
+        val customLayout = layoutInflater.inflate(R.layout.dialog_password, null)
+        val passwordTf = customLayout.findViewById<TextInputLayout>(R.id.password_tf)
+        val passwordEdt = customLayout.findViewById<EditText>(R.id.password_edt)
+        val dialogBtn = customLayout.findViewById<MaterialButton>(R.id.dialog_btn)
+
+        dialogBtn.text = task
+
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setView(customLayout)
+            .create()
+
+        dialog.setCanceledOnTouchOutside(false)
+
+        passwordEdt.apply {
+
+            afterTextChanged {
+                passwordTf.error = null
+                passwordTf.isErrorEnabled = false
+            }
+
+            setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_DONE) {
+                    dialogBtn.performClick()
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+
+
+        dialog.setOnCancelListener {
+            onResult("") // user cancelled
+        }
+        dialog.show()
+
+        dialogBtn.setOnClickListener {
+            val password = passwordEdt.text.toString()
+
+            if (!Validate.isPasswordValid(password)) {
+                passwordTf.error = getString(Validate.getPasswordErrorMessages(password))
+            } else {
+                dialog.dismiss()
+                onResult(password)
+            }
+
+        }
+    }
+
+    private fun renameFile(file: FileItem) {
+
+        val editText = EditText(requireContext()).apply {
+            setText(file.name.substringBeforeLast("."))
+            setSelection(text.length)
+        }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle("Rename File")
+            .setView(editText)
+            .setPositiveButton("Rename") { _, _ ->
+
+                val newName = editText.text.toString().trim()
+                if (newName.isEmpty()) {
+                    Toast.makeText(requireContext(), "Invalid name", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                performRename(file, newName)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun performRename(file: FileItem, newName: String) {
+
+        try {
+            val resolver = requireContext().contentResolver
+
+            val extension = file.name.substringAfterLast(".", "")
+            val finalName = if (extension.isNotEmpty()) {
+                "$newName.$extension"
+            } else {
+                newName
+            }
+
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, finalName)
+            }
+
+            val updated = resolver.update(file.uri, values, null, null)
+
+            if (updated > 0) {
+                Toast.makeText(requireContext(), "File renamed", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "Rename failed", Toast.LENGTH_SHORT).show()
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(requireContext(), "Error renaming file", Toast.LENGTH_SHORT).show()
+        }
+    }
 }
