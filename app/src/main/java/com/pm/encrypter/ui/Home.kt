@@ -40,7 +40,10 @@ class Home : Fragment() {
             GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(
                 MaterialColors.getColor(v, com.google.android.material.R.attr.colorSecondary),
-                MaterialColors.getColor(v, com.google.android.material.R.attr.colorPrimaryContainer),
+                MaterialColors.getColor(
+                    v,
+                    com.google.android.material.R.attr.colorPrimaryContainer
+                ),
                 MaterialColors.getColor(v, com.google.android.material.R.attr.colorSurface)
 
             )
@@ -69,25 +72,11 @@ class Home : Fragment() {
 
 
     // 1. Picker for selecting a normal file to ENCRYPT
-    private val pickFileToEncryptLauncher =
+    val pickFileToEncryptLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
 
             if (uri != null) {
-                showPasswordDialog("Encrypt File") { password ->
-                    if (password.isNotEmpty()) {
-                        intent.putExtra("PASSWORD", password)
-                        intent.putExtra("URI", uri)
-                        intent.putExtra("TASK", "ENCRYPT")
-                        startActivity(intent)
-                    } else {
-                        Toast.makeText(
-                            requireContext(),
-                            "Please enter password!",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        return@showPasswordDialog
-                    }
-                }
+                encryption(uri)
             } else {
                 Toast.makeText(v.context, "File not selected", Toast.LENGTH_SHORT).show()
             }
@@ -97,26 +86,48 @@ class Home : Fragment() {
     private val pickFileToDecryptLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
 
-            if (uri == null) {
+            if (uri != null) {
+                decryption(uri)
+            } else {
                 Toast.makeText(v.context, "File not selected", Toast.LENGTH_SHORT).show()
-                return@registerForActivityResult
             }
 
-            showPasswordDialog("Decrypt File") { password ->
-                if (password.isNotEmpty()) {
-                    intent.putExtra("PASSWORD", password)
-                    intent.putExtra("URI", uri)
-                    intent.putExtra("TASK", "DECRYPT")
-                    startActivity(intent)
-                } else {
-                    Toast.makeText(requireContext(), "Please enter password!", Toast.LENGTH_SHORT)
-                        .show()
-                }
-            }
 
         }
 
-    private fun showPasswordDialog(
+    fun encryption(uri: Uri) {
+        showPasswordDialog("Encrypt File") { password ->
+            if (password.isNotEmpty()) {
+                intent.putExtra("PASSWORD", password)
+                intent.putExtra("URI", uri)
+                intent.putExtra("TASK", "ENCRYPT")
+                startActivity(intent)
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    "Please enter password!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@showPasswordDialog
+            }
+        }
+    }
+
+    fun decryption(uri: Uri) {
+        showPasswordDialog("Decrypt File") { password ->
+            if (password.isNotEmpty()) {
+                intent.putExtra("PASSWORD", password)
+                intent.putExtra("URI", uri)
+                intent.putExtra("TASK", "DECRYPT")
+                startActivity(intent)
+            } else {
+                Toast.makeText(requireContext(), "Please enter password!", Toast.LENGTH_SHORT)
+                    .show()
+            }
+        }
+    }
+
+    fun showPasswordDialog(
         task: String,
         onResult: (String) -> Unit
     ) {
@@ -134,7 +145,7 @@ class Home : Fragment() {
         dialog.setCanceledOnTouchOutside(false)
 
         passwordEdt.apply {
-         
+
             afterTextChanged {
                 passwordTf.error = null
                 passwordTf.isErrorEnabled = false
