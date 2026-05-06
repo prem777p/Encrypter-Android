@@ -1,0 +1,75 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Group scales the content to 80% and centers it (108 * 0.1 = 10.8 offset) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.6"
+        android:scaleY="0.6">
+
+        <!-- 1. The Main File Badge Shape Outline -->
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="5"
+            android:strokeLineJoin="round"
+            android:pathData="M21,15 H70 L86,31 V88 C86,91 83,94 80,94 H27 C25,94 22,91 20,88 Z" />
+
+        <!-- 2. Circuit Board Pattern -->
+        <path
+            android:strokeColor="#99FFFFFF"
+            android:strokeWidth="2.2"
+            android:pathData="M25,40 H31 M30,40 V50 H36 M36,50" />
+        <path
+            android:strokeColor="#99FFFFFF"
+            android:strokeWidth="2.2"
+            android:pathData="M25,75 H28 V82 H33 M33,81 V88 H38" />
+        <path
+            android:strokeColor="#99FFFFFF"
+            android:strokeWidth="2.2"
+            android:pathData="M82,45 H78 V55 H72 M72,55" />
+        <path
+            android:strokeColor="#99FFFFFF"
+            android:strokeWidth="2.2"
+            android:pathData="M82,70 H76 V78 H71 M71,77 V86 H66" />
+        <path
+            android:strokeColor="#99FFFFFF"
+            android:strokeWidth="2.2"
+            android:pathData="M40,25 H45 V30 H50" />
+        <path
+            android:strokeColor="#99FFFFFF"
+            android:strokeWidth="2.2"
+            android:pathData="M60,20 V25 H65 V30" />
+
+        <!-- 3. Pixel Grid Details -->
+        <path android:fillColor="#33FFFFFF" android:pathData="M60,30 h3 v3 h-3 z" />
+        <path android:fillColor="#66FFFFFF" android:pathData="M65,30 h3 v3 h-3 z" />
+        <path android:fillColor="#33FFFFFF" android:pathData="M60,35 h3 v3 h-3 z" />
+        <path android:fillColor="#66FFFFFF" android:pathData="M65,35 h3 v3 h-3 z" />
+        <path android:fillColor="#66FFFFFF" android:pathData="M70,35 h3 v3 h-3 z" />
+        <path android:fillColor="#B3FFFFFF" android:pathData="M70,40 h3 v3 h-3 z" />
+        <path android:fillColor="#B3FFFFFF" android:pathData="M75,40 h3 v3 h-3 z" />
+        <path android:fillColor="#B3FFFFFF" android:pathData="M25,65 h3 v3 h-3 z" />
+        <path android:fillColor="#66FFFFFF" android:pathData="M30,65 h3 v3 h-3 z" />
+        <path android:fillColor="#66FFFFFF" android:pathData="M25,70 h3 v3 h-3 z" />
+        <path android:fillColor="#B3FFFFFF" android:pathData="M30,70 h3 v3 h-3 z" />
+        <path android:fillColor="#B3FFFFFF" android:pathData="M35,70 h3 v3 h-3 z" />
+        <path android:fillColor="#66FFFFFF" android:pathData="M30,75 h3 v3 h-3 z" />
+
+        <!-- 4. Shield (With solid background color to hide lines behind it) -->
+        <!-- Note: If your app background is not black, change #FF000000 to your background color -->
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="2.8"
+            android:pathData="M54,38 C46,38 39,41 35,44 V60 C35,72 54,84 54,84 C54,84 73,72 73,60 V44 C69,41 62,38 54,38 Z" />
+
+        <!-- 5. Padlock Shape -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M54,50 C51,50 49,52 49,55 V58 H46 V70 H62 V58 H59 V55 C59,52 57,50 54,50 Z M54,52 C55,52 56,53 56,55 V58 H52 V55 C52,53 53,52 54,52 Z" />
+    </group>
+
+</vector>
