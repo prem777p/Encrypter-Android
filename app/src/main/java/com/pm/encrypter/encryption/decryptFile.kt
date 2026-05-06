@@ -14,29 +14,38 @@ suspend fun decryptFileWithPassword(
     password: String
 ) {
     withContext(Dispatchers.IO) {
-        // 1. Read Salt
         val saltLength = encryptedFileStream.read()
         val salt = ByteArray(saltLength)
-        encryptedFileStream.read(salt)
+        readFully(encryptedFileStream, salt)
 
-        // 2. Read IV
         val ivLength = encryptedFileStream.read()
         val iv = ByteArray(ivLength)
-        encryptedFileStream.read(iv)
+        readFully(encryptedFileStream, iv)
 
-        // 3. Derive the exact same key using the password and the read Salt
         val key = deriveKeyFromPassword(password, salt)
 
-        // 4. Initialize Cipher
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val spec = GCMParameterSpec(128, iv)
-        cipher.init(Cipher.DECRYPT_MODE, key, spec)
+        // CHANGE: Use CBC and IvParameterSpec
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(Cipher.DECRYPT_MODE, key, javax.crypto.spec.IvParameterSpec(iv))
 
-        // 5. Decrypt the file data
         CipherInputStream(encryptedFileStream, cipher).use { cipherIn ->
             decryptedFileOutputStream.use { output ->
-                cipherIn.copyTo(output, bufferSize = 8192)
+                val buffer = ByteArray(64 * 1024)
+                var bytes = cipherIn.read(buffer)
+                while (bytes != -1) {
+                    output.write(buffer, 0, bytes)
+                    bytes = cipherIn.read(buffer)
+                }
             }
         }
+    }
+}
+
+fun readFully(input: InputStream, buffer: ByteArray) {
+    var offset = 0
+    while (offset < buffer.size) {
+        val read = input.read(buffer, offset, buffer.size - offset)
+        if (read == -1) throw Exception("Unexpected EOF")
+        offset += read
     }
 }
