@@ -7,7 +7,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.view.View
 import android.widget.Button
@@ -17,19 +16,18 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButtonGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.pm.encrypter.R
 import com.pm.encrypter.encryption.decryptFileWithPassword
-import com.pm.encrypter.utils.deleteFile
 import com.pm.encrypter.encryption.encryptFileWithPassword
+import com.pm.encrypter.utils.ProgressInputStream
+import com.pm.encrypter.utils.deleteFile
 import com.pm.encrypter.utils.getFileName
+import com.pm.encrypter.utils.openFolderModern
 import com.pm.encrypter.utils.shareFile
 import com.pm.encrypter.utils.splitFileName
-import com.pm.encrypter.utils.ProgressInputStream
-import com.pm.encrypter.utils.openFolderModern
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -93,7 +91,7 @@ class Progress : AppCompatActivity() {
             }
         }
         btnView.setOnClickListener {
-            openFolderModern(this,folderType)
+            openFolderModern(this, folderType)
         }
 
         if (task.equals("ENCRYPT")) {
@@ -113,7 +111,11 @@ class Progress : AppCompatActivity() {
     private fun encryptAndSaveToDownloads(inputUri: Uri, password: String) {
         lifecycleScope.launch {
 
-            val fileSize = contentResolver.openFileDescriptor(inputUri, "r")?.statSize ?: -1
+            val fileSize = try {
+                contentResolver.openFileDescriptor(inputUri, "r")?.statSize ?: -1L
+            } catch (e: Exception) {
+                -1L
+            }
 
             progressBar.visibility = View.VISIBLE
             progressText.visibility = View.VISIBLE
@@ -130,32 +132,45 @@ class Progress : AppCompatActivity() {
                     contentResolver.openInputStream(inputUri)?.use { inputStream ->
 
                         // ✅ wrap input stream (THIS is the key)
-                        val progressStream = ProgressInputStream(
-                            inputStream, fileSize
-                        ) { progress ->
-                            // switch to UI thread safely
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                progressBar.progress = progress
-                                progressText.text = "$progress%"
+                        // switch to UI thread safely
+                        var lastProgress = -1
+                        var lastUpdateTime = 0L
+
+                        val progressStream =
+                            ProgressInputStream(inputStream, fileSize) { progress ->
+
+                                val now = System.currentTimeMillis()
+
+                                if (progress != lastProgress && now - lastUpdateTime > 200) {
+                                    lastProgress = progress
+                                    lastUpdateTime = now
+
+                                    runOnUiThread {
+                                        progressBar.progress = progress
+                                        progressText.text = "$progress%"
+                                    }
+                                }
                             }
-                        }
+
 
                         getOutputStreamForDownloads(
                             fileName, "application/octet-stream", "Encrypted"
                         )?.use { outputStream ->
 
-                            val dataOut = DataOutputStream(outputStream)
+                            DataOutputStream(outputStream).use { dataOut ->
 
-                            //  save extension + mime type
-                            val mimeType =
-                                contentResolver.getType(inputUri) ?: "application/octet-stream"
-                            dataOut.writeUTF(ext)
-                            dataOut.writeUTF(mimeType)
+                                val mimeType =
+                                    contentResolver.getType(inputUri) ?: "application/octet-stream"
 
-                            //  encrypt actual file
-                            encryptFileWithPassword(
-                                progressStream, dataOut, password
-                            )
+                                dataOut.writeUTF(ext)
+                                dataOut.writeUTF(mimeType)
+
+                                encryptFileWithPassword(
+                                    progressStream,
+                                    dataOut,
+                                    password
+                                )
+                            }
                         }
                     }
 
@@ -183,7 +198,11 @@ class Progress : AppCompatActivity() {
     private fun decryptAndSaveToDownloads(inputUri: Uri, password: String) {
         lifecycleScope.launch {
 
-            val fileSize = contentResolver.openFileDescriptor(inputUri, "r")?.statSize ?: -1
+            val fileSize = try {
+                contentResolver.openFileDescriptor(inputUri, "r")?.statSize ?: -1L
+            } catch (e: Exception) {
+                -1L
+            }
 
             progressBar.visibility = View.VISIBLE
             progressText.visibility = View.VISIBLE
@@ -196,38 +215,50 @@ class Progress : AppCompatActivity() {
                     contentResolver.openInputStream(inputUri)?.use { inputStream ->
 
                         // ✅ Wrap input stream for progress
-                        val progressStream = ProgressInputStream(
-                            inputStream, fileSize
-                        ) { progress ->
-                            lifecycleScope.launch(Dispatchers.Main) {
-                                progressBar.progress = progress
-                                progressText.text = "$progress%"
+                        var lastProgress = -1
+                        var lastUpdateTime = 0L
+
+                        val progressStream =
+                            ProgressInputStream(inputStream, fileSize) { progress ->
+
+                                val now = System.currentTimeMillis()
+
+                                if (progress != lastProgress && now - lastUpdateTime > 200) {
+                                    lastProgress = progress
+                                    lastUpdateTime = now
+
+                                    runOnUiThread {
+                                        progressBar.progress = progress
+                                        progressText.text = "$progress%"
+                                    }
+                                }
                             }
-                        }
 
-                        val dataIn = DataInputStream(progressStream)
+                        DataInputStream(progressStream).use { dataIn ->
 
-                        // read stored extension + mime
-                        val ext = dataIn.readUTF()
-                        val mimeType = dataIn.readUTF()
+                            val ext = dataIn.readUTF()
+                            val mimeType = dataIn.readUTF()
 
-                        val encryptedName =
-                            getFileName(inputUri, this@Progress as Context)   // photo.enc
-                        val baseName = encryptedName.removeSuffix(".enc")
+                            val encryptedName =
+                                getFileName(inputUri, this@Progress)
+                            val baseName = encryptedName.removeSuffix(".enc")
 
-                        val finalName = if (ext.isNotEmpty()) {
-                            "$baseName.$ext"
-                        } else {
-                            baseName
-                        }
+                            val finalName = if (ext.isNotEmpty()) {
+                                "$baseName.$ext"
+                            } else {
+                                baseName
+                            }
 
-                        getOutputStreamForDownloads(
-                            finalName, mimeType, "Decrypted"
-                        )?.use { outputStream ->
+                            getOutputStreamForDownloads(
+                                finalName, mimeType, "Decrypted"
+                            )?.use { outputStream ->
 
-                            decryptFileWithPassword(
-                                dataIn, outputStream, password
-                            )
+                                decryptFileWithPassword(
+                                    dataIn,
+                                    outputStream,
+                                    password
+                                )
+                            }
                         }
                     }
 
@@ -304,7 +335,6 @@ class Progress : AppCompatActivity() {
             }
         }
     }
-
 
 
     fun showDeleteFileDialog(onResult: (Boolean) -> Unit) {
