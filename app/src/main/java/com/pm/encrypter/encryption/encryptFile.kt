@@ -13,27 +13,28 @@ suspend fun encryptFileWithPassword(
     password: String
 ) {
     withContext(Dispatchers.IO) {
-        // 1. Generate Salt and Derive Key
         val salt = generateSalt()
         val key = deriveKeyFromPassword(password, salt)
 
-        // 2. Initialize Cipher
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, key)
+        // CHANGE: Use CBC instead of GCM
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, key) // This generates a random IV
         val iv = cipher.iv
 
-        // 3. Write Salt Length and Salt
         encryptedFileOutputStream.write(salt.size)
         encryptedFileOutputStream.write(salt)
-
-        // 4. Write IV Length and IV
         encryptedFileOutputStream.write(iv.size)
         encryptedFileOutputStream.write(iv)
 
-        // 5. Encrypt the file data
+        // This now streams properly without buffering the whole file
         CipherOutputStream(encryptedFileOutputStream, cipher).use { cipherOut ->
             originalFileStream.use { input ->
-                input.copyTo(cipherOut, bufferSize = 8192)
+                val buffer = ByteArray(64 * 1024)
+                var bytes = input.read(buffer)
+                while (bytes != -1) {
+                    cipherOut.write(buffer, 0, bytes)
+                    bytes = input.read(buffer)
+                }
             }
         }
     }
