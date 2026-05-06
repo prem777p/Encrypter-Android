@@ -19,6 +19,7 @@ import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.search.SearchBar
@@ -50,6 +51,7 @@ class EncryptFile : Fragment() {
     private lateinit var view: View
     private lateinit var observer: ContentObserver
     private lateinit var intent: Intent
+    private lateinit var bottomNav: BottomNavigationView
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -60,6 +62,7 @@ class EncryptFile : Fragment() {
         val recyclerView = view.findViewById<RecyclerView>(R.id.recyclerView)
         searchBar = view.findViewById(R.id.search_bar)
         searchView = view.findViewById(R.id.search_view)
+        bottomNav = requireActivity().findViewById<BottomNavigationView>(R.id.bottom_navigation)
 
 
         requireActivity().onBackPressedDispatcher.addCallback(
@@ -164,9 +167,6 @@ class EncryptFile : Fragment() {
     }
 
     private fun hideNavBar(recyclerView: RecyclerView) {
-        val bottomNav = requireActivity()
-            .findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottom_navigation)
-
         var isVisible = true
 
         recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
@@ -198,7 +198,6 @@ class EncryptFile : Fragment() {
         })
 
     }
-
     private fun loadFiles(type: String): List<FileItem> {
 
         val shortFiles = when (type) {
@@ -212,6 +211,12 @@ class EncryptFile : Fragment() {
             }
         }
         return shortFiles.sortedByDescending { it.date }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        bottomNav.animate().translationY(0f).setDuration(200).start()
     }
 
     override fun onResume() {
